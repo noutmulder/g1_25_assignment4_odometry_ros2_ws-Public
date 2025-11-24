@@ -1,0 +1,59 @@
+menu "Example Configuration"
+
+    orsource "$IDF_PATH/examples/common_components/env_caps/$IDF_TARGET/Kconfig.env_caps"
+
+    config I2C_MASTER_SCL
+        int "SCL GPIO Num"
+        range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
+        default 4
+        help
+            GPIO number for I2C Master clock line.
+
+    config I2C_MASTER_SDA
+        int "SDA GPIO Num"
+        range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
+        default 5
+        help
+            GPIO number for I2C Master data line.
+
+    config I2C_MASTER_FREQUENCY
+        int "Master Frequency"
+        default 400000
+        help
+            I2C Speed of Master device.
+
+    menu "WiFi Configuration"
+        config WIFI_SSID
+            string "WiFi SSID"
+            default "your_wifi_ssid"
+            help
+                SSID (network name) for the example to connect to.
+
+        config WIFI_PASSWORD
+            string "WiFi Password"
+            default "your_wifi_password"
+            help
+                WiFi password (WPA or WPA2) for the example to use.
+
+        config WIFI_MAX_RETRY
+            int "Maximum retry"
+            default 5
+            help
+                Set the Maximum retry to avoid station reconnecting to the AP unlimited when the AP is really inexistent.
+    endmenu
+
+    menu "MQTT Configuration"
+        config MQTT_BROKER_URI
+            string "MQTT Broker URI"
+            default "mqtt://192.168.1.100:1883"
+            help
+                URL of the MQTT broker to connect to (e.g., mqtt://192.168.1.100:1883)
+
+        config MQTT_TOPIC
+            string "MQTT Topic"
+            default "esp32/imu/data"
+            help
+                MQTT topic to publish IMU data to
+    endmenu
+
+endmenu

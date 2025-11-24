@@ -1,0 +1,40 @@
+# Quickstart guides (generated documentation)
+/SERIAL_MODE_QUICKSTART.md
+/WIRELESS_MODE_QUICKSTART.md
+
+# Build artifacts
+build/
+install/
+log/
+
+# Databases
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# ROS2
+.colcon_build/
+.colcon_install/
+
+# ESP-IDF
+sdkconfig.old
+sdkconfig.old.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

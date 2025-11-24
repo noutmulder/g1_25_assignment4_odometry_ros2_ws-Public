@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- Serial IMU Lifecycle Node -->
+    <node_lifecycle pkg="imu_sensor_pkg" exec="serial_imu_node" name="serial_imu_node" output="screen">
+        <param name="serial_port" value="/dev/ttyACM0"/>
+        <param name="baud_rate" value="115200"/>
+        <param name="publish_rate_ms" value="10"/>
+    </node_lifecycle>
+
+    <!-- Database Subscriber Node -->
+    <node pkg="imu_sensor_pkg" exec="imu_database_node" name="imu_database_node" output="screen">
+        <param name="database_path" value="imu_data.db"/>
+    </node>
+
+    <!-- Visualizer Node -->
+    <node pkg="imu_sensor_pkg" exec="imu_vector_visualizer" name="imu_vector_visualizer" output="screen"/>
+
+    <!-- RViz2 Node -->
+    <node pkg="rviz2" exec="rviz2" name="rviz2" output="screen">
+        <arg name="-d" value="$(find-pkg-share imu_sensor_pkg)/rviz/display.rviz"/>
+    </node>
+
+    <!-- Lifecycle transitions -->
+    <!-- Configure transition after 2 seconds -->
+    <timer period="2.0">
+        <lifecycle_transition node="serial_imu_node" transition="configure"/>
+    </timer>
+
+    <!-- Activate transition when node reaches inactive state -->
+    <lifecycle_transition node="serial_imu_node" transition="activate" 
+                         start_state="configuring" goal_state="inactive"/>
+</launch>
