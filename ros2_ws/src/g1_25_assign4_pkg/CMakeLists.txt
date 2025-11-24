@@ -16,6 +16,7 @@ find_package(rclcpp_components REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(g1_25_assign4_interfaces_pkg REQUIRED)
 
 # Include directories
@@ -70,6 +71,11 @@ target_include_directories(imu_vector_visualizer PRIVATE ${EIGEN3_INCLUDE_DIRS})
 add_executable(accel_velocity_approximator src/accel_velocity_approximator.cpp)
 ament_target_dependencies(accel_velocity_approximator rclcpp sensor_msgs nav_msgs)
 install(TARGETS accel_velocity_approximator DESTINATION lib/${PROJECT_NAME})
+
+# Sensor data simulator
+add_executable(sensor_data_simulator src/sensor_data_simulator.cpp)
+ament_target_dependencies(sensor_data_simulator rclcpp sensor_msgs nav_msgs geometry_msgs)
+install(TARGETS sensor_data_simulator DESTINATION lib/${PROJECT_NAME})
 
 # Install launch files
 install(DIRECTORY

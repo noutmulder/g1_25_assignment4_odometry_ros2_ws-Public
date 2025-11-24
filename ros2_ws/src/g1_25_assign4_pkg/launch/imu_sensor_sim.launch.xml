@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<launch>
+  <node pkg="g1_25_assign4_pkg" exec="sensor_data_simulator" name="sensor_data_simulator" output="screen">
+    <param name="publish_rate_hz" value="50.0"/>
+    <param name="accel_amp" value="0.5"/>
+    <param name="accel_bias" value="0.0"/>
+    <param name="accel_freq_hz" value="0.2"/>
+    <param name="gyro_z_bias" value="0.1"/>
+    <param name="gyro_z_noise_std" value="0.01"/>
+    <param name="accel_noise_std" value="0.05"/>
+    <param name="frame_id" value="imu_link"/>
+    <param name="odom_frame_id" value="odom"/>
+    <param name="base_frame_id" value="base_link"/>
+  </node>
+
+  <!-- Run approximator on simulated data -->
+  <node pkg="g1_25_assign4_pkg" exec="accel_velocity_approximator" name="accel_velocity_approximator" output="screen">
+    <param name="odom_frame_id" value="odom"/>
+    <param name="base_frame_id" value="base_link"/>
+    <param name="remove_gravity_z" value="false"/>
+    <param name="use_orientation_for_gravity" value="false"/>
+    <param name="gravity_m_s2" value="9.81"/>
+    <param name="accel_smoothing_alpha" value="0.2"/>
+    <param name="accel_deadband" value="0.02"/>
+    <param name="velocity_damping" value="0.02"/>
+    <param name="max_dt_seconds" value="0.2"/>
+  </node>
+</launch>

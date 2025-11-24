@@ -5,6 +5,8 @@
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 #include "nav_msgs/msg/odometry.hpp"
+#include "geometry_msgs/msg/vector3_stamped.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
 
 class AccelVelocityApproximator : public rclcpp::Node
 {
@@ -24,6 +26,9 @@ public:
     odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("imu/odom", 10);
     imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>(
       "/imu/data", 20, std::bind(&AccelVelocityApproximator::imu_callback, this, std::placeholders::_1));
+    accel_pub_ = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("imu/accel_filtered", 10);
+    velocity_pub_ = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("imu/velocity", 10);
+    position_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("imu/position", 10);
 
     RCLCPP_INFO(this->get_logger(), "AccelVelocityApproximator ready (integrating /imu/data)");
   }
@@ -108,11 +113,42 @@ private:
     odom_msg.twist.twist.angular = msg->angular_velocity;
 
     odom_pub_->publish(odom_msg);
+    publish_helpers(stamp, filtered_accel);
     last_time_ = stamp;
+  }
+
+  void publish_helpers(const rclcpp::Time &stamp, const std::array<double, 3> &filtered_accel)
+  {
+    geometry_msgs::msg::Vector3Stamped accel_msg;
+    accel_msg.header.stamp = stamp;
+    accel_msg.header.frame_id = base_frame_;
+    accel_msg.vector.x = filtered_accel[0];
+    accel_msg.vector.y = filtered_accel[1];
+    accel_msg.vector.z = filtered_accel[2];
+    accel_pub_->publish(accel_msg);
+
+    geometry_msgs::msg::Vector3Stamped vel_msg;
+    vel_msg.header = accel_msg.header;
+    vel_msg.vector.x = velocity_[0];
+    vel_msg.vector.y = velocity_[1];
+    vel_msg.vector.z = velocity_[2];
+    velocity_pub_->publish(vel_msg);
+
+    geometry_msgs::msg::PoseStamped pose_msg;
+    pose_msg.header.stamp = stamp;
+    pose_msg.header.frame_id = odom_frame_;
+    pose_msg.pose.position.x = position_[0];
+    pose_msg.pose.position.y = position_[1];
+    pose_msg.pose.position.z = position_[2];
+    pose_msg.pose.orientation.w = 1.0;
+    position_pub_->publish(pose_msg);
   }
 
   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
+  rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr accel_pub_;
+  rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr velocity_pub_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr position_pub_;
 
   std::string odom_frame_;
   std::string base_frame_;
