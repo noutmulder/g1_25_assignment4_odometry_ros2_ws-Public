@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(imu_sensor_pkg)
+project(g1_25_assign4_pkg)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -16,6 +16,7 @@ find_package(rclcpp_components REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(g1_25_assign4_interfaces_pkg REQUIRED)
 
 # Include directories
 include_directories(include)

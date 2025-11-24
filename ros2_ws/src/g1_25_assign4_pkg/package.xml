@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>imu_sensor_pkg</name>
-  <version>1.0.0</version>
-  <description>ESP32 MPU6886 IMU Sensor ROS2 Integration</description>
+  <name>g1_25_assign4_pkg</name>
+  <version>0.0.1</version>
+  <description>Assignment 4 ROS2 nodes (IMU ingest, approximation, visualization, database).</description>
   <maintainer email="justlikesemih04@gmail.com">broodjesemih</maintainer>
   <license>MIT</license>
 
@@ -16,6 +16,7 @@
   <depend>lifecycle_msgs</depend>
   <depend>rclcpp_components</depend>
   <depend>nav_msgs</depend>
+  <depend>g1_25_assign4_interfaces_pkg</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

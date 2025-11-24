@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>g1_25_assign4_interfaces_pkg</name>
+  <version>0.0.1</version>
+  <description>Assignment 4 interface package placeholder.</description>
+  <maintainer email="unknown@example.com">unknown</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
