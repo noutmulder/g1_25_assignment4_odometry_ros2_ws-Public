@@ -13,10 +13,14 @@
   <depend>rclcpp_lifecycle</depend>
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>tf2</depend>
+  <depend>tf2_geometry_msgs</depend>
   <depend>lifecycle_msgs</depend>
   <depend>rclcpp_components</depend>
   <depend>nav_msgs</depend>
   <depend>g1_25_assign4_interfaces_pkg</depend>
+  <depend>visualization_msgs</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

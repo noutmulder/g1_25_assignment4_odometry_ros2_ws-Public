@@ -1,0 +1,36 @@
+<launch>
+  <!-- Simulated IMU + wheel encoders -->
+  <node pkg="g1_25_assign4_pkg" exec="sensor_data_simulator" name="sensor_data_simulator" output="screen">
+    <param name="imu_rate_hz" value="50"/>
+    <param name="wheel_rate_hz" value="25"/>
+    <param name="forward_accel" value="0.5"/>
+    <param name="turn_rate" value="0.2"/>
+  </node>
+
+  <!-- IMU integration -->
+  <node pkg="g1_25_assign4_pkg" exec="accel_velocity_approximator" name="accel_velocity_approximator" output="screen">
+    <param name="remove_gravity_z" value="true"/>
+    <param name="use_orientation_for_gravity" value="false"/>
+    <param name="gravity_m_s2" value="9.81"/>
+    <param name="accel_smoothing_alpha" value="0.2"/>
+    <param name="accel_deadband" value="0.02"/>
+    <param name="velocity_damping" value="0.02"/>
+    <param name="max_dt_seconds" value="0.2"/>
+  </node>
+
+  <!-- Wheel odometry -->
+  <node pkg="g1_25_assign4_pkg" exec="wheel_encoder_odometry" name="wheel_encoder_odometry" output="screen">
+    <param name="wheel_radius" value="0.05"/>
+    <param name="track_width" value="0.20"/>
+  </node>
+
+  <!-- Visualizer -->
+  <node pkg="g1_25_assign4_pkg" exec="imu_vector_visualizer" name="imu_vector_visualizer" output="screen">
+    <param name="remove_gravity" value="false"/>
+    <param name="deadband" value="0.0"/>
+  </node>
+
+  <!-- RViz -->
+  <node pkg="rviz2" exec="rviz2" name="rviz2" output="screen"
+        args="-d $(find-pkg-share g1_25_assign4_pkg)/rviz/display.rviz"/>
+</launch>

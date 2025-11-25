@@ -17,6 +17,9 @@ find_package(visualization_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(g1_25_assign4_interfaces_pkg REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 # Include directories
 include_directories(include)
@@ -70,6 +73,27 @@ target_include_directories(imu_vector_visualizer PRIVATE ${EIGEN3_INCLUDE_DIRS})
 add_executable(accel_velocity_approximator src/accel_velocity_approximator.cpp)
 ament_target_dependencies(accel_velocity_approximator rclcpp sensor_msgs nav_msgs)
 install(TARGETS accel_velocity_approximator DESTINATION lib/${PROJECT_NAME})
+
+add_executable(sensor_data_simulator src/sensor_data_simulator.cpp)
+ament_target_dependencies(sensor_data_simulator
+  rclcpp
+  sensor_msgs
+  std_msgs
+  geometry_msgs
+  g1_25_assign4_interfaces_pkg
+)
+install(TARGETS sensor_data_simulator DESTINATION lib/${PROJECT_NAME})
+
+add_executable(wheel_encoder_odometry src/wheel_encoder_odometry.cpp)
+ament_target_dependencies(wheel_encoder_odometry
+  rclcpp
+  nav_msgs
+  geometry_msgs
+  tf2
+  tf2_geometry_msgs
+  g1_25_assign4_interfaces_pkg
+)
+install(TARGETS wheel_encoder_odometry DESTINATION lib/${PROJECT_NAME})
 
 # Install launch files
 install(DIRECTORY
