@@ -30,4 +30,11 @@ With custom MQTT broker:
     <node pkg="g1_25_assign4_pkg" exec="imu_database_node" name="imu_database_node" output="screen">
         <param name="database_path" value="$(var db_path)"/>
     </node>
+
+    <!-- Visualizer Node -->
+    <node pkg="g1_25_assign4_pkg" exec="imu_vector_visualizer" name="imu_vector_visualizer" output="screen"/>
+
+    <!-- RViz2 Node -->
+    <node pkg="rviz2" exec="rviz2" name="rviz2" output="screen"
+          args="-d $(find-pkg-share g1_25_assign4_pkg)/rviz/display.rviz"/>
 </launch>

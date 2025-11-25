@@ -12,6 +12,7 @@
 #include "sensor_msgs/msg/imu.hpp"
 #include "sensor_msgs/msg/temperature.hpp"
 #include "lifecycle_msgs/msg/transition.hpp"
+#include "lifecycle_msgs/msg/state.hpp"
 
 using namespace std::chrono_literals;
 using LifecycleCallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
@@ -294,7 +295,24 @@ int main(int argc, char * argv[])
 {
     rclcpp::init(argc, argv);
     auto node = std::make_shared<SerialIMULifecycleNode>();
-    rclcpp::spin(node->get_node_base_interface());
+
+    // Zelf configureren/activeren zodat de lifecycle-node direct publiceert.
+    auto configured_state = node->trigger_transition(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE);
+    if (configured_state.id() != lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
+        RCLCPP_ERROR(node->get_logger(), "Lifecycle configure failed, cannot continue (state id %u)", configured_state.id());
+        rclcpp::shutdown();
+        return 1;
+    }
+    auto activated_state = node->trigger_transition(lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE);
+    if (activated_state.id() != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE) {
+        RCLCPP_ERROR(node->get_logger(), "Lifecycle activate failed, cannot continue (state id %u)", activated_state.id());
+        rclcpp::shutdown();
+        return 1;
+    }
+
+    rclcpp::executors::SingleThreadedExecutor exec;
+    exec.add_node(node->get_node_base_interface());
+    exec.spin();
     rclcpp::shutdown();
     return 0;
 }
