@@ -17,9 +17,12 @@ public:
     gravity_m_s2_ = this->declare_parameter<double>("gravity_m_s2", 9.81);
     max_dt_seconds_ = this->declare_parameter<double>("max_dt_seconds", 0.2);
 
-    odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("imu/odom", 10);
+    // Use sensor data QoS for lower latency (best effort, small history).
+    auto sensor_qos = rclcpp::SensorDataQoS();
+    odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("imu/odom", sensor_qos);
     imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>(
-      "/imu/data", 20, std::bind(&AccelVelocityApproximator::imu_callback, this, std::placeholders::_1));
+      "/imu/data", sensor_qos,
+      std::bind(&AccelVelocityApproximator::imu_callback, this, std::placeholders::_1));
 
     RCLCPP_INFO(this->get_logger(), "AccelVelocityApproximator ready (integrating /imu/data)");
   }

@@ -53,12 +53,13 @@ public:
         RCLCPP_INFO(this->get_logger(), "Database opened: %s", db_path.c_str());
         
         // Create subscriptions
+        auto sensor_qos = rclcpp::SensorDataQoS();
         imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>(
-            "/imu/data", 10,
+            "/imu/data", sensor_qos,
             std::bind(&IMUDatabaseSubscriber::imu_callback, this, std::placeholders::_1));
         
         temp_sub_ = this->create_subscription<sensor_msgs::msg::Temperature>(
-            "/imu/temperature", 10,
+            "/imu/temperature", sensor_qos,
             std::bind(&IMUDatabaseSubscriber::temp_callback, this, std::placeholders::_1));
         
         RCLCPP_INFO(this->get_logger(), "IMUDatabaseSubscriber initialized");

@@ -130,9 +130,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         if (mqtt_pub_queue != NULL) {
             char queued_msg[MQTT_PUB_MSG_SIZE];
             while (xQueueReceive(mqtt_pub_queue, queued_msg, 0) == pdPASS) {
-                int msg_id = esp_mqtt_client_publish(mqtt_client, MQTT_TOPIC, queued_msg, 0, 1, 0);
+                int msg_id = esp_mqtt_client_publish(mqtt_client, MQTT_TOPIC, queued_msg, 0, 0, 0);
                 ESP_LOGI(TAG_MQTT, "Flushed queued msg id=%d", msg_id);
-                vTaskDelay(pdMS_TO_TICKS(10)); /* small spacing to avoid burst */
+                vTaskDelay(pdMS_TO_TICKS(1)); /* small spacing to avoid burst */
             }
         }
         break;
@@ -180,7 +180,7 @@ void mqtt_app_start(void)
 void mqtt_publish_imu_data(const char *data)
 {
     if (mqtt_client != NULL && mqtt_connected) {
-        int msg_id = esp_mqtt_client_publish(mqtt_client, MQTT_TOPIC, data, 0, 1, 0);
+        int msg_id = esp_mqtt_client_publish(mqtt_client, MQTT_TOPIC, data, 0, 0, 0);
         ESP_LOGD(TAG_MQTT, "Published to topic %s, msg_id=%d", MQTT_TOPIC, msg_id);
         return;
     }

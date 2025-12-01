@@ -3,6 +3,9 @@
 #include <string>
 #include <sstream>
 #include <fstream>
+#include <algorithm>
+#include <cerrno>
+#include <cstring>
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
@@ -16,15 +19,36 @@
 using namespace std::chrono_literals;
 using LifecycleCallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
+static speed_t baud_to_speed(int baud)
+{
+    switch (baud) {
+        case 9600: return B9600;
+        case 19200: return B19200;
+        case 38400: return B38400;
+        case 57600: return B57600;
+        case 115200: return B115200;
+#ifdef B230400
+        case 230400: return B230400;
+#endif
+#ifdef B460800
+        case 460800: return B460800;
+#endif
+#ifdef B921600
+        case 921600: return B921600;
+#endif
+        default: return 0;
+    }
+}
+
 class SerialIMULifecycleNode : public rclcpp_lifecycle::LifecycleNode
 {
 public:
     SerialIMULifecycleNode() : LifecycleNode("serial_imu_node"), serial_fd_(-1)
     {
         // Declare parameters
-        this->declare_parameter<std::string>("serial_port", "/dev/ttyAMC1");
+        this->declare_parameter<std::string>("serial_port", "/dev/ttyACM0");
         this->declare_parameter<int>("baud_rate", 115200);
-        this->declare_parameter<int>("publish_rate_ms", 100);
+        this->declare_parameter<int>("publish_rate_ms", 1);  // try to read every ms
         
         RCLCPP_INFO(this->get_logger(), "SerialIMULifecycleNode constructed");
     }
@@ -45,8 +69,10 @@ public:
         baud_rate_ = this->get_parameter("baud_rate").as_int();
         
         // Create publishers
-        imu_pub_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu/data", 10);
-        temp_pub_ = this->create_publisher<sensor_msgs::msg::Temperature>("/imu/temperature", 10);
+        // Sensor QoS keeps latency low (small history) but RELIABLE to match default subscribers.
+        auto sensor_qos = rclcpp::SensorDataQoS().reliable();
+        imu_pub_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu/data", sensor_qos);
+        temp_pub_ = this->create_publisher<sensor_msgs::msg::Temperature>("/imu/temperature", sensor_qos);
         
         RCLCPP_INFO(this->get_logger(), "Configured with port: %s, baud: %d", 
                     serial_port_.c_str(), baud_rate_);
@@ -59,7 +85,7 @@ public:
         RCLCPP_INFO(this->get_logger(), "Activating SerialIMULifecycleNode");
         
         // Open serial port
-        serial_fd_ = open(serial_port_.c_str(), O_RDONLY | O_NOCTTY);
+        serial_fd_ = open(serial_port_.c_str(), O_RDONLY | O_NOCTTY | O_NONBLOCK);
         if (serial_fd_ < 0) {
             RCLCPP_ERROR(this->get_logger(), "Failed to open serial port: %s", serial_port_.c_str());
             return LifecycleCallbackReturn::ERROR;
@@ -73,16 +99,20 @@ public:
             serial_fd_ = -1;
             return LifecycleCallbackReturn::ERROR;
         }
-        
-        cfsetospeed(&tty, B115200);
-        cfsetispeed(&tty, B115200);
+        speed_t speed = baud_to_speed(baud_rate_);
+        if (speed == 0) {
+            RCLCPP_WARN(this->get_logger(), "Unsupported baud rate %d, falling back to 115200", baud_rate_);
+            speed = B115200;
+        }
+        cfsetospeed(&tty, speed);
+        cfsetispeed(&tty, speed);
         
         tty.c_cflag = (tty.c_cflag & ~CSIZE) | CS8;
         tty.c_iflag &= ~IGNBRK;
         tty.c_lflag = 0;
         tty.c_oflag = 0;
         tty.c_cc[VMIN]  = 0;
-        tty.c_cc[VTIME] = 10;
+        tty.c_cc[VTIME] = 0;  // return immediately when no data
         
         tty.c_iflag &= ~(IXON | IXOFF | IXANY);
         tty.c_cflag |= (CLOCAL | CREAD);
@@ -109,6 +139,7 @@ public:
         
         // Start timer
         int rate_ms = this->get_parameter("publish_rate_ms").as_int();
+        rate_ms = std::max(rate_ms, 1);
         timer_ = this->create_wall_timer(
             std::chrono::milliseconds(rate_ms),
             std::bind(&SerialIMULifecycleNode::read_and_publish, this));
@@ -160,55 +191,61 @@ private:
     {
         if (serial_fd_ < 0) return;
         
-        // Read line from serial
         std::string line;
         char buf[256];
-        ssize_t n = read(serial_fd_, buf, sizeof(buf) - 1);
-        
-        if (n > 0) {
-            buf[n] = '\0';
-            buffer_ += std::string(buf);
+        while (true) {
+            ssize_t n = read(serial_fd_, buf, sizeof(buf) - 1);
+            if (n > 0) {
+                buf[n] = '\0';
+                buffer_ += std::string(buf);
+            } else if (n == 0 || (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))) {
+                break;
+            } else {
+                RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
+                                     "Serial read error: %s", strerror(errno));
+                break;
+            }
+        }
+
+        // Process complete lines
+        size_t pos;
+        while ((pos = buffer_.find('\n')) != std::string::npos) {
+            line = buffer_.substr(0, pos);
+            buffer_.erase(0, pos + 1);
             
-            // Process complete lines
-            size_t pos;
-            while ((pos = buffer_.find('\n')) != std::string::npos) {
-                line = buffer_.substr(0, pos);
-                buffer_.erase(0, pos + 1);
+            // Remove carriage return if present
+            if (!line.empty() && line.back() == '\r') {
+                line.pop_back();
+            }
+            
+            // Skip empty lines
+            if (line.empty()) continue;
+            
+            // Handle multiple IMU messages in one line (split by "IMU" marker)
+            size_t imu_pos = 0;
+            while ((imu_pos = line.find("IMU", imu_pos)) != std::string::npos) {
+                // Find the end of this IMU message (next "IMU" or end of string)
+                size_t next_imu = line.find("IMU", imu_pos + 3);
+                std::string imu_data;
                 
-                // Remove carriage return if present
-                if (!line.empty() && line.back() == '\r') {
-                    line.pop_back();
+                if (next_imu != std::string::npos) {
+                    // Extract until next IMU
+                    imu_data = line.substr(imu_pos, next_imu - imu_pos);
+                } else {
+                    // Extract until end of line
+                    imu_data = line.substr(imu_pos);
                 }
                 
-                // Skip empty lines
-                if (line.empty()) continue;
+                // Parse this IMU message
+                if (!imu_data.empty()) {
+                    parse_and_publish(imu_data);
+                }
                 
-                // Handle multiple IMU messages in one line (split by "IMU" marker)
-                size_t imu_pos = 0;
-                while ((imu_pos = line.find("IMU", imu_pos)) != std::string::npos) {
-                    // Find the end of this IMU message (next "IMU" or end of string)
-                    size_t next_imu = line.find("IMU", imu_pos + 3);
-                    std::string imu_data;
-                    
-                    if (next_imu != std::string::npos) {
-                        // Extract until next IMU
-                        imu_data = line.substr(imu_pos, next_imu - imu_pos);
-                    } else {
-                        // Extract until end of line
-                        imu_data = line.substr(imu_pos);
-                    }
-                    
-                    // Parse this IMU message
-                    if (!imu_data.empty()) {
-                        parse_and_publish(imu_data);
-                    }
-                    
-                    // Move to next potential IMU message
-                    if (next_imu != std::string::npos) {
-                        imu_pos = next_imu;
-                    } else {
-                        break;
-                    }
+                // Move to next potential IMU message
+                if (next_imu != std::string::npos) {
+                    imu_pos = next_imu;
+                } else {
+                    break;
                 }
             }
         }

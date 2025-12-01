@@ -46,8 +46,10 @@ public:
         mqtt_topic_ = this->get_parameter("mqtt_topic").as_string();
         
         // Create publishers
-        imu_pub_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu/data", 10);
-        temp_pub_ = this->create_publisher<sensor_msgs::msg::Temperature>("/imu/temperature", 10);
+        // Use sensor QoS (small history) but force RELIABLE so other nodes with default QoS connect.
+        auto sensor_qos = rclcpp::SensorDataQoS().reliable();
+        imu_pub_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu/data", sensor_qos);
+        temp_pub_ = this->create_publisher<sensor_msgs::msg::Temperature>("/imu/temperature", sensor_qos);
         
         RCLCPP_INFO(this->get_logger(), "Configured with broker: %s:%d, topic: %s", 
                     mqtt_broker_.c_str(), mqtt_port_, mqtt_topic_.c_str());

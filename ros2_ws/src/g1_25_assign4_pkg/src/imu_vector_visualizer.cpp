@@ -16,7 +16,7 @@ public:
             "visualization_marker_array", 10);
 
         imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>(
-            "/imu/data", 10,
+            "/imu/data", rclcpp::SensorDataQoS(),
             std::bind(&ImuVectorVisualizer::imu_callback, this, std::placeholders::_1));
 
         RCLCPP_INFO(this->get_logger(), "IMU Vector Visualizer started (gravity compensated + smoothing + trail)");

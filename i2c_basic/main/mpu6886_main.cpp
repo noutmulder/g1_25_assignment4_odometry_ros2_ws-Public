@@ -153,9 +153,10 @@ esp_err_t mpu6886_read_temperature_avg(i2c_master_dev_handle_t dev_handle, int s
         
         int16_t val = (int16_t)((buf[0] << 8) | buf[1]);
         sum += val;
-        
-        /* Small delay between samples to reduce bus contention */
-        vTaskDelay(pdMS_TO_TICKS(5));
+
+        if (samples > 1) {
+            vTaskDelay(1);
+        }
     }
     
     int32_t avg = sum / samples;
@@ -232,29 +233,12 @@ extern "C" void app_main(void)
     float accel_sens = mpu6886_get_accel_sensitivity(dev_handle);
     ESP_LOGI(TAG, "Accel sensitivity = %.1f LSB/g", accel_sens);
 
-    /* Interactive calibration prompt */
-    printf("\n=== Temperature Calibration ===\n");
-    printf("To calibrate, type 'cal <temp>' then Enter (e.g. cal 21.5)\n");
-    printf("Or just press Enter to skip calibration:\n");
-    
-    char line[64];
-    if (fgets(line, sizeof(line), stdin) != NULL) {
-        float ref_temp = 0.0f;
-        if (sscanf(line, "cal %f", &ref_temp) == 1) {
-            ESP_LOGI(TAG, "Running temp calibration with ref %.2f C...", ref_temp);
-            if (mpu6886_calibrate_temp_offset(dev_handle, MPU6886_TEMP_SAMPLES, ref_temp) != ESP_OK) {
-                ESP_LOGW(TAG, "Temp calibration failed");
-            }
-        } else {
-            ESP_LOGI(TAG, "Skipping temperature calibration");
-        }
-    }
+    ESP_LOGI(TAG, "Skipping interactive temperature calibration for fast startup");
 
     printf("\n=== Starting sensor readout ===\n\n");
 
     /* Main sensor reading loop */
-    uint8_t raw_data[6];
-    uint8_t gyro_data[6];
+    uint8_t imu_buffer[14];
     const float G_TO_MS2 = 9.80665f;
     
     /* For timestamp */
@@ -265,28 +249,23 @@ extern "C" void app_main(void)
     
     while (1) {
         uint32_t timestamp_ms = esp_log_timestamp() - start_time;
-        
-        /* Read accelerometer data */
-        int16_t accel_x = 0, accel_y = 0, accel_z = 0;
-        if (mpu6886_register_read(dev_handle, MPU6886_ACCEL_XOUT_H, raw_data, 6) == ESP_OK) {
-            accel_x = (int16_t)(raw_data[0] << 8 | raw_data[1]);
-            accel_y = (int16_t)(raw_data[2] << 8 | raw_data[3]);
-            accel_z = (int16_t)(raw_data[4] << 8 | raw_data[5]);
+
+        if (mpu6886_register_read(dev_handle, MPU6886_ACCEL_XOUT_H, imu_buffer, sizeof(imu_buffer)) != ESP_OK) {
+            ESP_LOGW(TAG, "IMU read failed");
+            vTaskDelay(pdMS_TO_TICKS(1));
+            continue;
         }
-        
-        /* Read gyroscope data (register 0x43) */
-        int16_t gyro_x = 0, gyro_y = 0, gyro_z = 0;
-        if (mpu6886_register_read(dev_handle, 0x43, gyro_data, 6) == ESP_OK) {
-            gyro_x = (int16_t)(gyro_data[0] << 8 | gyro_data[1]);
-            gyro_y = (int16_t)(gyro_data[2] << 8 | gyro_data[3]);
-            gyro_z = (int16_t)(gyro_data[4] << 8 | gyro_data[5]);
-        }
-        
-        /* Read temperature data */
-        int32_t temp_avg_raw = 0;
-        float temperature = 0.0f;
-        mpu6886_read_temperature_avg(dev_handle, MPU6886_TEMP_SAMPLES, 
-                                     &temp_avg_raw, &temperature);
+
+        int16_t accel_x = (int16_t)(imu_buffer[0] << 8 | imu_buffer[1]);
+        int16_t accel_y = (int16_t)(imu_buffer[2] << 8 | imu_buffer[3]);
+        int16_t accel_z = (int16_t)(imu_buffer[4] << 8 | imu_buffer[5]);
+
+        int16_t temp_raw = (int16_t)(imu_buffer[6] << 8 | imu_buffer[7]);
+
+        int16_t gyro_x = (int16_t)(imu_buffer[8] << 8 | imu_buffer[9]);
+        int16_t gyro_y = (int16_t)(imu_buffer[10] << 8 | imu_buffer[11]);
+        int16_t gyro_z = (int16_t)(imu_buffer[12] << 8 | imu_buffer[13]);
+        float temperature = ((float)temp_raw / g_mpu6886_temp_sens) + g_mpu6886_temp_offset;
         
         /* Convert accelerometer to m/s^2 */
         float ax_g = (float)accel_x / accel_sens;
@@ -317,10 +296,9 @@ extern "C" void app_main(void)
             mqtt_publish_imu_data(csv_buffer);
         }
         
-        /* Human-readable log output */
-        ESP_LOGI(TAG, "Accel: X=%.3f Y=%.3f Z=%.3f m/s² | Gyro: X=%.3f Y=%.3f Z=%.3f rad/s | Temp: %.2f°C", 
+        ESP_LOGD(TAG, "Accel: X=%.3f Y=%.3f Z=%.3f m/s² | Gyro: X=%.3f Y=%.3f Z=%.3f rad/s | Temp: %.2f°C", 
                  ax_ms2, ay_ms2, az_ms2, gx_rads, gy_rads, gz_rads, temperature);
 
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
