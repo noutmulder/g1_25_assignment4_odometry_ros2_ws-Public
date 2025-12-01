@@ -1,5 +1,4 @@
 #include <array>
-#include <cmath>
 #include <string>
 
 #include "rclcpp/rclcpp.hpp"
@@ -16,9 +15,6 @@ public:
     remove_gravity_ = this->declare_parameter<bool>("remove_gravity_z", true);
     use_orientation_gravity_ = this->declare_parameter<bool>("use_orientation_for_gravity", false);
     gravity_m_s2_ = this->declare_parameter<double>("gravity_m_s2", 9.81);
-    alpha_ = this->declare_parameter<double>("accel_smoothing_alpha", 0.2);
-    accel_deadband_ = this->declare_parameter<double>("accel_deadband", 0.02);
-    velocity_damping_ = this->declare_parameter<double>("velocity_damping", 0.02);
     max_dt_seconds_ = this->declare_parameter<double>("max_dt_seconds", 0.2);
 
     odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("imu/odom", 10);
@@ -78,18 +74,8 @@ private:
       }
     }
 
-    std::array<double, 3> filtered_accel{};
     for (size_t i = 0; i < 3; ++i) {
-      filtered_accel[i] = alpha_ * accel[i] + (1.0 - alpha_) * prev_accel_[i];
-      prev_accel_[i] = filtered_accel[i];
-      if (std::abs(filtered_accel[i]) < accel_deadband_) {
-        filtered_accel[i] = 0.0;
-      }
-    }
-
-    for (size_t i = 0; i < 3; ++i) {
-      velocity_[i] += filtered_accel[i] * dt;
-      velocity_[i] *= std::max(0.0, 1.0 - velocity_damping_ * dt);
+      velocity_[i] += accel[i] * dt;
       position_[i] += velocity_[i] * dt;
     }
 
@@ -119,14 +105,10 @@ private:
   bool remove_gravity_;
   bool use_orientation_gravity_;
   double gravity_m_s2_;
-  double alpha_;
-  double accel_deadband_;
-  double velocity_damping_;
   double max_dt_seconds_;
 
   std::array<double, 3> position_{{0.0, 0.0, 0.0}};
   std::array<double, 3> velocity_{{0.0, 0.0, 0.0}};
-  std::array<double, 3> prev_accel_{{0.0, 0.0, 0.0}};
   rclcpp::Time last_time_;
   bool has_last_time_{false};
 };
